@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Atlas Municipal de Embu das Artes (SP, 3515004) — Urbanização, Equipamentos e Tipologia Habitacional</title>
+  <meta name="description" content="Atlas digital municipal de Embu das Artes (IBGE 3515004): limite, sistema viário estruturante, equipamentos, tipologia horizontal/vertical e assentamentos precários. Datum SIRGAS 2000, fontes IBGE Cidades@.">
+  <meta name="dcterms.coverage" content="Embu das Artes, São Paulo, Brasil. -23.65,-46.85">
+  <meta name="dcterms.source" content="IBGE Cidades@; Esri World Imagery / Light Gray Canvas">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo-ident">
+      <p class="inst">ETESP — Atlas Municipal Aplicado</p>
+      <h1>Embu das Artes (SP) <span class="cod">IBGE 3515004</span></h1>
+      <p class="sub">Urbanização, centralidades e tipologia habitacional — suporte cartográfico com dados IBGE</p>
+    </div>
+    <nav class="topo-acoes" aria-label="Controles do mapa">
+      <button id="b-sat" type="button">Satélite</button>
+      <button id="b-reset" type="button">Reset</button>
+      <button id="b-loc" type="button" aria-label="Centralizar na minha localização">📍</button>
+    </nav>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Vistas do atlas">
+    <button id="tab-mapa" role="tab" aria-selected="true" aria-controls="wrap" type="button">Mapa</button>
+    <button id="tab-perfil" role="tab" aria-selected="false" aria-controls="view-perfil" type="button">Perfil Topográfico</button>
+  </nav>
+
+  <div id="wrap">
+    <aside id="panel" aria-label="Painel analítico">
+      <section class="card resumo" aria-labelledby="t-resumo">
+        <h3 id="t-resumo">Resumo e objetivo</h3>
+        <p>Este atlas sistematiza a organização intraurbana de Embu das Artes (RMSP):
+        eixo logístico da <strong>BR-116</strong>, eixo de conexão metropolitana do
+        <strong>Rodoanel</strong>, centralidade histórico-turística e vetores de
+        expansão horizontal ao sul (área de mananciais) <em>versus</em> adensamento
+        misto/vertical no eixo da rodovia. Objetiva subsidiar leitura territorial
+        e formulação de hipóteses de planejamento.</p>
+      </section>
+
+      <section class="card ibge" aria-labelledby="t-ibge">
+        <h3 id="t-ibge">Quadro 1 — Síntese IBGE Cidades@ 3515004</h3>
+        <table>
+          <tbody>
+            <tr><td>Gentílico / Prefeito (2025)</td><td>embuense / Hugo do Prado Santos</td></tr>
+            <tr><td>Microrregião (IBGE)</td><td>Itapecerica da Serra</td></tr>
+            <tr><td>Área territorial (2025)</td><td>70,264 km²</td></tr>
+            <tr><td>População, Censo (2022)</td><td>250.691 hab.</td></tr>
+            <tr><td>Estimativa populacional (2026)</td><td>260.113 hab.</td></tr>
+            <tr><td>Densidade demográfica (2022)</td><td>3.561,05 hab./km²</td></tr>
+            <tr><td>Escolarização 6–14 anos</td><td>98,73%</td></tr>
+            <tr><td>IDHM (2010)<sup><a href="#nota-idhm">1</a></sup></td><td>0,735 — alto</td></tr>
+            <tr><td>Mortalidade infantil (2025)</td><td>9,63 óbitos/mil nascidos vivos</td></tr>
+            <tr><td>PIB per capita (2023)</td><td>R$ 68.971,96</td></tr>
+            <tr><td>Receitas realizadas (2025)</td><td>R$ 1,526 bi</td></tr>
+            <tr><td>Despesas empenhadas (2025)</td><td>R$ 1,355 bi</td></tr>
+          </tbody>
+        </table>
+        <p class="fonte">Fonte: IBGE Cidades@ — Embu das Artes, panorama; IBGE Cidades e Estados. Acesso em 22 set. 2026.</p>
+        <p class="nota" id="nota-idhm"><sup>1</sup> Último IDHM municipal disponível (Censo 2010). Leitura deve ser atualizada com novo Censo/Atlas do Desenvolvimento Humano quando publicado.</p>
+      </section>
+
+      <section class="card" aria-labelledby="t-busca">
+        <h3 id="t-busca">Busca toponímica</h3>
+        <label class="sr" for="q">Buscar equipamento ou via</label>
+        <input id="q" list="lugares" type="text" placeholder="Ex.: Feira, Yazbek, Rodoanel..." autocomplete="off">
+        <datalist id="lugares"></datalist>
+      </section>
+
+      <section class="card" aria-labelledby="t-camadas">
+        <h3 id="t-camadas">Camadas e legenda</h3>
+        <label class="row"><input type="checkbox" id="c-lim" checked> <strong>Limite municipal</strong> <span class="leg-linha" style="border-color:#FFD600"></span></label>
+        <label class="row"><input type="checkbox" id="c-via" checked> <strong>Sistema viário estruturante</strong></label>
+        <ul class="legenda-vias">
+          <li><span class="linha" style="background:red"></span> BR-116 Régis Bittencourt — logística</li>
+          <li><span class="linha" style="background:#9c27b0"></span> Rodoanel — articulação metropolitana N–S</li>
+          <li><span class="linha" style="background:#FF6F00"></span> Vias coletoras (Yazbek / Medina / Leone)</li>
+          <li><span class="linha" style="background:#1976d2"></span> Centro Histórico — circulação cultural</li>
+        </ul>
+        <label class="row"><input type="checkbox" id="c-eq" checked> <span class="dot" style="background:#1976d2"></span> <strong>Equipamentos e centralidades</strong> <span id="n-eq"></span></label>
+        <p class="legenda-cod">C = cultura · T = turismo/feira · L = lazer · E = economia · S = saúde (localização aproximada/ex-histórica quando indicado)</p>
+        <label class="row"><input type="checkbox" id="c-tip" checked> <strong>Tipologia habitacional (modelo interpretativo)</strong></label>
+        <ul class="legenda-vias">
+          <li><span class="quad" style="background:rgba(255,204,0,.5);border-color:#F9A825"></span> Horizontal extensiva — sul / mananciais</li>
+          <li><span class="quad" style="background:rgba(123,31,162,.35);border-color:#7b1fa2"></span> Mista / verticalização — eixo BR-116</li>
+        </ul>
+        <label class="row"><input type="checkbox" id="c-fav" checked> <strong>Assentamentos precários / irregulares</strong> <span class="losango" aria-hidden="true"></span></label>
+        <div class="row">Opacidade tipologia <input type="range" id="op" min="10" max="80" value="30" style="flex:1" aria-label="Opacidade das zonas tipológicas"></div>
+      </section>
+
+      <section class="card" aria-labelledby="t-metodo">
+        <h3 id="t-metodo">Ficha técnica e método</h3>
+        <dl class="ficha">
+          <dt>Datum / SRC</dt><dd>SIRGAS 2000 (EPSG:4674), coordenadas geográficas decimais</dd>
+          <dt>Base cartográfica</dt><dd>Esri Light Gray Canvas (rua), OSM Padrão, Relevo OpenTopoMap e World Imagery (satélite); escala dinâmica + barra gráfica</dd>
+          <dt>Limite</dt><dd>Polígono simplificado de trabalho; para análise oficial usar malha IBGE/Seade</dd>
+          <dt>Viário/equipamentos</dt><dd>Vetorização interpretativa + pontos de campo/bibliografia; itens “aprox”/“ex” exigem checagem in loco</dd>
+          <dt>Tipologia</dt><dd>Modelo conceitual (não zoneamento legal): ver <code>data/zonas_tipologia.geojson</code></dd>
+        </dl>
+      </section>
+
+      <section class="card analise" aria-labelledby="t-analise">
+        <h3 id="t-analise">Leitura crítica (síntese)</h3>
+        <ol>
+          <li><strong>Densidade alta (3,5 mil hab./km²)</strong> em área exígua (70 km²) sugere pressão sobre mananciais ao sul e conurbação com Taboão da Serra/Cotia.</li>
+          <li><strong>Economia dual:</strong> turismo/feira e móveis (Yazbek/Centro) convivem com logística industrial no eixo BR-116.</li>
+          <li><strong>Precariedade pontual</strong> (7 núcleos) demanda cruzamento com setores censitários e CadÚnico — não inferir causalidade pelo mapa.</li>
+        </ol>
+      </section>
+
+      <section class="card refs" aria-labelledby="t-refs">
+        <h3 id="t-refs">Referências (ABNT NBR 6023, adapt.)</h3>
+        <p>IBGE. Embu das Artes: panorama. <em>Cidades@</em>. Disponível em: https://cidades.ibge.gov.br/brasil/sp/embu-das-artes/panorama. Acesso em: 22 set. 2026.</p>
+        <p>IBGE. Embu das Artes. <em>Cidades e Estados</em>. Disponível em: https://www.ibge.gov.br/cidades-e-estados/sp/embu-das-artes.html. Acesso em: 22 set. 2026.</p>
+        <p>ESRI; MAXAR. World Imagery / World Light Gray Base. Tiles de referência, 2026.</p>
+        <p>FARR, T. G. et al. The Shuttle Radar Topography Mission. <em>Reviews of Geophysics</em>, v. 45, 2007. Dados SRTM 90m via OpenTopoData. Disponível em: https://www.opentopodata.org/. Acesso em: 23 set. 2026.</p>
+      </section>
+
+      <div id="coord" role="status" aria-live="polite">-23.6489,-46.8522</div>
+      <p class="licenca">Uso educacional. Limite e pontos simplificados — citar fontes e verificar em campo/órgãos oficiais.</p>
+    </aside>
+    <main id="map" aria-label="Mapa interativo de Embu das Artes"></main>
+  </div>
+  <section id="view-perfil" hidden aria-labelledby="t-perfil">
+    <div class="perfil-head">
+      <h2 id="t-perfil">Perfil Topográfico — Transecto N-S Centro–Mananciais</h2>
+      <p>Do Centro Histórico ao compartimento sul. Valores estáticos SRTM 90 m versionados em <code>data/perfil_n_s.geojson</code> (60 amostras, 23 set. 2026). Vertical em EGM96; horizontal em SIRGAS 2000. Linha esquemática — não usar para obra/drenagem.</p>
+    </div>
+    <div class="perfil-grid">
+      <div class="perfil-mapbox"><div id="mini-map" aria-label="Mini-mapa do transecto"></div></div>
+      <div class="perfil-chartbox">
+        <div id="perfil-stats" class="card"></div>
+        <svg id="chart" role="img" aria-label="Gráfico do perfil topográfico: distância por elevação"></svg>
+        <p id="perfil-leitura" role="status" aria-live="polite">Passe o cursor sobre o gráfico…</p>
+        <button id="b-csv" type="button">Exportar CSV</button>
+      </div>
+    </div>
+    <div class="card perfil-tabela-card">
+      <h3>Quadro 2 — Amostras do perfil (60 pontos)</h3>
+      <div class="tabela-scroll">
+        <table class="perfil-tabela">
+          <thead><tr><th>Seq</th><th>Dist (km)</th><th>Ele (m)</th><th>Lat,Lng</th></tr></thead>
+          <tbody id="perfil-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <div class="norte norte-legado" aria-hidden="true">N▲</div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
