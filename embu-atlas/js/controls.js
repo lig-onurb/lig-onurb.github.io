@@ -43,15 +43,17 @@ export function initControls(map, layers, base) {
   const buscar = (texto) => {
     const alvo = norm(texto);
     if (!alvo) return false;
+    const mob = window.innerWidth < 700;
+    const zEq = mob ? 14 : 15;
     const fEq = equipList.find((e) => e.n === alvo) || equipList.find((e) => e.n.includes(alvo));
     if (fEq) {
-      map.flyTo(fEq.latlng, 15, { duration: 1.1 });
+      map.flyTo(fEq.latlng, zEq, { duration: 1.1 });
       setTimeout(() => fEq.layer.openPopup(), 1200);
       return true;
     }
     const fVia = viaList.find((v) => v.n === alvo) || viaList.find((v) => v.n.includes(alvo));
     if (fVia?.layer?.getBounds) {
-      map.flyToBounds(fVia.layer.getBounds(), { padding: [40, 40], maxZoom: 15 });
+      map.flyToBounds(fVia.layer.getBounds(), { padding: mob ? [16, 16] : [40, 40], maxZoom: 15 });
       setTimeout(() => fVia.layer.openPopup(), 900);
       return true;
     }

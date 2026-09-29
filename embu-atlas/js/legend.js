@@ -54,6 +54,10 @@ export function addLegend(map, layers, stats = {}) {
       };
       btn.onclick = alternar;
       btn.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); alternar(); } };
+      // No celular a legenda começa recolhida para não cobrir o mapa
+      try {
+        if (window.matchMedia?.('(max-width: 860px)').matches) alternar();
+      } catch { /* noop */ }
       div.querySelectorAll('[data-fit]').forEach((li) => {
         li.style.cursor = 'pointer';
         li.title = 'Clique para enquadrar a camada';
@@ -62,8 +66,9 @@ export function addLegend(map, layers, stats = {}) {
         const ir = () => {
           const l = layers[li.dataset.fit];
           if (!l) return;
-          if (l.getBounds) map.flyToBounds(l.getBounds(), { padding: [30, 30], maxZoom: 15 });
-          else if (l.getLatLng) map.flyTo(l.getLatLng(), 15);
+          const mob = window.innerWidth < 700;
+          if (l.getBounds) map.flyToBounds(l.getBounds(), { padding: mob ? [16, 16] : [30, 30], maxZoom: 15 });
+          else if (l.getLatLng) map.flyTo(l.getLatLng(), mob ? 14 : 15);
         };
         li.onclick = ir;
         li.onkeydown = (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } };

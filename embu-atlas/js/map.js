@@ -109,11 +109,14 @@ export function addViario(map, geojson) {
 
   const rotular = () => {
     const z = map.getZoom();
+    // No celular, menos rótulos simultâneos (telas estreitas poluem rápido)
+    const mob = window.innerWidth < 700;
     viario.eachLayer((l) => {
       const tt = l.getTooltip();
       if (!tt) return;
       const hier = l.feature?.properties?.hierarquia || 'coletora';
-      if (z >= (ROTULO_MIN_ZOOM[hier] ?? 14)) l.openTooltip();
+      const min = (ROTULO_MIN_ZOOM[hier] ?? 14) + (mob && (hier === 'arterial' || hier === 'coletora' || hier === 'cultural') ? 1 : 0);
+      if (z >= min) l.openTooltip();
       else l.closeTooltip();
     });
   };
