@@ -4,12 +4,14 @@
  * forma + cor para equipamentos; borda tracejada + transparência para tipologia.
  */
 
-/** Hierarquia do sistema viário por nome/classe. */
+/** Hierarquia do sistema viário por `hierarquia` (fonte única de verdade visual). */
 export const VIAS_ESTILO = {
-  'BR-116 Régis': { color: '#c62828', weight: 6, opacity: 0.95 },
-  'Rodoanel CONTÍNUO N-S': { color: '#6a1b9a', weight: 5, dashArray: '10 4', opacity: 0.9 },
-  coletora: { color: '#ef6c00', weight: 4, opacity: 0.9 },
-  cultural: { color: '#1565c0', weight: 3, dashArray: '2 4', opacity: 0.9 }
+  rodovia: { color: '#D81B06', weight: 6, opacity: 0.96 },
+  anel: { color: '#7B1FA2', weight: 5.5, dashArray: '12 5', opacity: 0.95 },
+  arterial: { color: '#F57C00', weight: 4.5, opacity: 0.95 },
+  coletora: { color: '#1565C0', weight: 3.5, opacity: 0.92 },
+  vicinal: { color: '#2E9E44', weight: 3, opacity: 0.9 },
+  cultural: { color: '#C2185B', weight: 3, dashArray: '2 5', opacity: 0.92 }
 };
 
 /**
@@ -18,10 +20,15 @@ export const VIAS_ESTILO = {
  * @returns {object} Estilo Leaflet.
  */
 export function estiloViario(props = {}) {
+  if (props.hierarquia && VIAS_ESTILO[props.hierarquia]) return VIAS_ESTILO[props.hierarquia];
+  // Compat: nomes antigos / sem hierarquia
   const nome = props.nome || '';
-  if (nome.includes('BR-116')) return VIAS_ESTILO['BR-116 Régis'];
-  if (nome.includes('Rodoanel')) return VIAS_ESTILO['Rodoanel CONTÍNUO N-S'];
+  if (nome.includes('BR-116')) return VIAS_ESTILO.rodovia;
+  if (nome.includes('Rodoanel')) return VIAS_ESTILO.anel;
   if (nome.includes('Centro Histórico')) return VIAS_ESTILO.cultural;
+  if (/Yazbek|Rotary|Marcelino|Salvador|Hélio|Hercílio/i.test(nome)) return VIAS_ESTILO.arterial;
+  if (/Medina|Jorge de Souza|João Paulo|Campo Limpo|Moraes|Veredas/i.test(nome)) return VIAS_ESTILO.coletora;
+  if (/Orquid|Keiichi|Taji/i.test(nome)) return VIAS_ESTILO.vicinal;
   return VIAS_ESTILO.coletora;
 }
 
@@ -73,6 +80,15 @@ export function iconeEquipamento(cor, letra) {
 }
 
 /**
+ * Escapa HTML para popups/títulos.
+ * @param {unknown} v Valor.
+ * @returns {string}
+ */
+export function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/**
  * Monta popup tabular acadêmico (título + linhas atributo/valor + rodapé fonte).
  * @param {string} titulo Título em negrito.
  * @param {Array<[string,string]>} linhas Pares [rótulo, valor].
@@ -80,6 +96,6 @@ export function iconeEquipamento(cor, letra) {
  * @returns {string} HTML.
  */
 export function popupTabela(titulo, linhas = [], rodape = '') {
-  const rows = linhas.filter(([, v]) => v).map(([k, v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join('');
-  return `<div class="popup-tabela"><strong>${titulo}</strong><table>${rows}</table>${rodape ? `<small>${rodape}</small>` : ''}</div>`;
+  const rows = linhas.filter(([, v]) => v !== '' && v != null).map(([k, v]) => `<tr><th>${esc(k)}</th><td>${v}</td></tr>`).join('');
+  return `<div class="popup-tabela"><strong>${esc(titulo)}</strong><table>${rows}</table>${rodape ? `<small>${rodape}</small>` : ''}</div>`;
 }

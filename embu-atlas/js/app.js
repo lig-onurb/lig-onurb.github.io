@@ -16,11 +16,16 @@ function stats(data, layers) {
   let kmVias = '—';
   let areaTip = '';
   try {
-    if (window.turf) {
+    const somaComp = (data.viario.features || []).reduce((s, f) => s + (Number(f.properties?.comp_km) || 0), 0);
+    if (somaComp > 0) {
+      kmVias = `${somaComp.toFixed(1).replace('.', ',')} km`;
+    } else if (window.turf) {
       const km = data.viario.features.reduce((s, f) => s + window.turf.length(f, { units: 'kilometers' }), 0);
-      kmVias = `${km.toFixed(1)} km`;
+      kmVias = `${km.toFixed(1).replace('.', ',')} km`;
+    }
+    if (window.turf) {
       const m2 = data.tipologia.features.reduce((s, f) => s + window.turf.area(f), 0);
-      areaTip = `· ${(m2 / 1e6).toFixed(1)} km²`;
+      areaTip = `· ${(m2 / 1e6).toFixed(1).replace('.', ',')} km²`;
     }
   } catch { /* sem turf */ }
   return {
@@ -38,14 +43,19 @@ function initTabs() {
   const view = document.getElementById('view-perfil');
   if (!tabMapa || !tabPerfil || !view) return;
 
-  const mostrar = async (qual) => {
+  const mostrar = async (qual, push = true) => {
     const ehMapa = qual === 'mapa';
     tabMapa.setAttribute('aria-selected', String(ehMapa));
     tabPerfil.setAttribute('aria-selected', String(!ehMapa));
+    tabMapa.tabIndex = ehMapa ? 0 : -1;
+    tabPerfil.tabIndex = ehMapa ? -1 : 0;
     wrap.hidden = !ehMapa;
     view.hidden = ehMapa;
     const acoes = document.querySelector('.topo-acoes');
     if (acoes) acoes.style.display = ehMapa ? '' : 'none';
+    if (push) {
+      try { location.hash = ehMapa ? 'mapa' : 'perfil'; } catch { /* noop */ }
+    }
     if (ehMapa) {
       if (mapPrincipal) setTimeout(() => mapPrincipal.invalidateSize(), 60);
     } else if (!perfilPronto && mapPrincipal) {
@@ -56,7 +66,7 @@ function initTabs() {
       } catch (err) {
         console.error(err);
         document.getElementById('perfil-stats').innerHTML =
-          `<strong>Erro ao carregar perfil.</strong> ${err.message}`;
+          `<strong>Erro ao carregar perfil.</strong> ${String(err.message || err).replace(/</g, '&lt;')}`;
       }
     } else {
       setTimeout(() => window.__perfilMini?.invalidateSize(), 60);
@@ -64,6 +74,18 @@ function initTabs() {
   };
   tabMapa.onclick = () => mostrar('mapa');
   tabPerfil.onclick = () => mostrar('perfil');
+  document.querySelector('.tabs')?.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    e.preventDefault();
+    if (document.activeElement === tabMapa) { tabPerfil.focus(); mostrar('perfil'); }
+    else { tabMapa.focus(); mostrar('mapa'); }
+  });
+  window.addEventListener('hashchange', () => {
+    const h = location.hash.replace('#', '');
+    if (h === 'perfil') mostrar('perfil', false);
+    else if (h === 'mapa') mostrar('mapa', false);
+  });
+  if (location.hash === '#perfil') mostrar('perfil', false);
 }
 
 async function init() {

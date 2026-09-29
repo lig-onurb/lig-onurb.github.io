@@ -56,10 +56,12 @@ export function addLimite(map, geojson) {
   }).addTo(map);
   limite.eachLayer((layer) => {
     const p = layer.feature?.properties || {};
+    const area = p.area_km2 ? `${String(p.area_km2).replace('.', ',')} km²` : '70,264 km²';
+    const pop = p.pop_2022 ? `${Number(p.pop_2022).toLocaleString('pt-BR')} hab.` : '250.691 hab.';
     layer.bindPopup(popupTabela(
       p.nome || 'Embu das Artes 3515004',
-      [['Área', '70,264 km²'], ['Pop. 2022', '250.691 hab.'], ['Densidade', '3.561,05 hab./km²'], ['PIB pc 2023', 'R$ 68.971,96'], ['IDHM 2010', '0,735 — alto'], ['Datum', 'SIRGAS 2000']],
-      'Fonte: IBGE Cidades@. Geometria simplificada de trabalho.'
+      [['Área', area], ['Pop. 2022', pop], ['Densidade', p.densidade_2022 ? `${String(p.densidade_2022).replace('.', ',')} hab./km²` : '3.561,05 hab./km²'], ['PIB pc 2023', p.pib_pc_2023 ? `R$ ${Number(p.pib_pc_2023).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 68.971,96'], ['IDHM 2010', p.idhm_2010 ? `${String(p.idhm_2010).replace('.', ',')} — alto` : '0,735 — alto'], ['Datum', 'SIRGAS 2000']],
+      `Fonte: IBGE Cidades@. ${p.fonte || 'Geometria simplificada de trabalho.'}`
     ));
   });
   const b = limite.getBounds();
@@ -68,31 +70,40 @@ export function addLimite(map, geojson) {
   return limite;
 }
 
+/** Vias com rótulo permanente por hierarquia. */
+const ROTULO_MIN_ZOOM = { rodovia: 11, anel: 11, arterial: 13, coletora: 14, vicinal: 15, cultural: 14 };
+
 /**
- * Viário com hierarquia Bertin + rótulos nos eixos estruturantes (zoom ≥13).
+ * Viário com hierarquia Bertin + rótulos por hierarquia (LineString e MultiLineString).
  * @param {L.Map} map Mapa.
  * @param {object} geojson Linhas.
  * @returns {L.GeoJSON}
  */
 export function addViario(map, geojson) {
   const viario = L.geoJSON(geojson, {
-    style: (f) => estiloViario(f.properties),
+    style: (f) => ({ ...estiloViario(f.properties), interactive: true }),
     onEachFeature: (f, layer) => {
       const p = f.properties || {};
-      let comp = '';
-      try {
-        if (window.turf) comp = `${window.turf.length(f, { units: 'kilometers' }).toFixed(2)} km (esquemático)`;
-      } catch { /* sem turf */ }
+      let comp = p.comp_km != null ? `${String(p.comp_km).replace('.', ',')} km (clipado ao limite)` : '';
+      if (!comp) {
+        try {
+          if (window.turf) comp = `${window.turf.length(f, { units: 'kilometers' }).toFixed(2).replace('.', ',')} km (esquemático)`;
+        } catch { /* sem turf */ }
+      }
+      const trechos = p.n_trechos > 1 ? ` · ${p.n_trechos} trechos` : '';
       layer.bindPopup(popupTabela(
         p.nome || 'Via',
-        [['Função', p.descricao || p.classe || '—'], ['Comprimento', comp], ['Classe', p.classe || '—'], ['Precisão', p.precisao || 'eixo esquemático']],
-        `Fonte: ${p.fonte || 'vetorização interpretativa'} · SIRGAS 2000`
+        [['Função', p.descricao || p.classe || '—'], ['Comprimento', comp + trechos], ['Classe', p.classe || '—'], ['Precisão', p.precisao || 'eixo OSM clipado']],
+        `Fonte: ${p.fonte || 'OpenStreetMap (ODbL)'} · SIRGAS 2000`
       ));
-      if (p.nome?.includes('BR-116') || p.nome?.includes('Rodoanel')) {
-        layer.bindTooltip(p.nome, { permanent: false, direction: 'top', className: 'via-label', sticky: true });
-      }
-      layer.on('mouseover', () => layer.setStyle({ weight: (estiloViario(p).weight || 4) + 2 }));
+      layer.bindTooltip(p.nome || 'Via', { permanent: false, direction: 'top', className: 'via-label', sticky: true });
+      layer.on('mouseover', (e) => {
+        if (e.originalEvent?.pointerType === 'touch') return;
+        layer.setStyle({ weight: (estiloViario(p).weight || 4) + 2 });
+      });
       layer.on('mouseout', () => viario.resetStyle(layer));
+      layer.on('focus', () => layer.setStyle({ weight: (estiloViario(p).weight || 4) + 2 }));
+      layer.on('blur', () => viario.resetStyle(layer));
     }
   }).addTo(map);
 
@@ -101,19 +112,18 @@ export function addViario(map, geojson) {
     viario.eachLayer((l) => {
       const tt = l.getTooltip();
       if (!tt) return;
-      const nome = l.feature?.properties?.nome || '';
-      const estruturante = nome.includes('BR-116') || nome.includes('Rodoanel');
-      if (estruturante && z >= 13) l.openTooltip();
+      const hier = l.feature?.properties?.hierarquia || 'coletora';
+      if (z >= (ROTULO_MIN_ZOOM[hier] ?? 14)) l.openTooltip();
       else l.closeTooltip();
     });
   };
-  map.on('zoomend', rotular);
+  map.on('zoomend moveend', rotular);
   rotular();
   return viario;
 }
 
 /**
- * Equipamentos com símbolo por forma + highlight.
+ * Equipamentos com símbolo por forma (sem popup em hover; click/teclado apenas).
  * @param {L.Map} map Mapa.
  * @param {object} geojson Pontos.
  * @returns {L.GeoJSON}
@@ -122,20 +132,24 @@ export function addEquipamentos(map, geojson) {
   return L.geoJSON(geojson, {
     pointToLayer: (f, latlng) => {
       const p = f.properties || {};
-      const m = L.marker(latlng, { icon: iconeEquipamento(p.cor, p.letra), title: p.nome, keyboard: true });
+      const m = L.marker(latlng, { icon: iconeEquipamento(p.cor, p.letra), title: p.nome, keyboard: true, alt: p.nome });
       m.bindPopup(popupTabela(
         `${p.letra || '•'} — ${p.nome}`,
         [['Categoria', p.categoria || '—'], ['Precisão', p.precisao || '—']],
         `Fonte: ${p.fonte || 'atlas original'} · SIRGAS 2000`
       ));
-      m.on('mouseover', () => m.openPopup());
       return m;
     }
   }).addTo(map);
 }
 
+/** Converte anel [lng,lat] p/ Leaflet, com validação. */
+function anelParaLatLng(anel) {
+  return (anel || []).filter((c) => Array.isArray(c) && Number.isFinite(c[0]) && Number.isFinite(c[1])).map(([lng, lat]) => [lat, lng]);
+}
+
 /**
- * Tipologia clipada pelo limite (turf.intersect) + área calculada.
+ * Tipologia com suporte a Polygon/MultiPolygon + clip opcional pelo limite.
  * @param {L.Map} map Mapa.
  * @param {object} geojson Zonas.
  * @param {object} limiteGeojson Limite para recorte.
@@ -143,30 +157,42 @@ export function addEquipamentos(map, geojson) {
  */
 export function addTip(map, geojson, limiteGeojson) {
   const limPoly = limiteGeojson?.features?.[0];
-  const polys = geojson.features.map((f) => {
+  const polys = [];
+  const porNome = {};
+  (geojson.features || []).forEach((f) => {
     const p = f.properties || {};
     let geom = f.geometry;
     let areaTxt = '';
     try {
-      if (window.turf && limPoly) {
+      if (window.turf && limPoly && window.turf.intersect) {
         const clip = window.turf.intersect(window.turf.featureCollection([window.turf.feature(geom), limPoly]));
-        if (clip) geom = clip.geometry;
+        if (clip?.geometry) geom = clip.geometry;
       }
-      if (window.turf) areaTxt = `${window.turf.area(window.turf.feature(geom)).toFixed(0)} m² (interseção c/ limite)`;
+      if (window.turf) {
+        const a = window.turf.area(window.turf.feature(geom));
+        if (Number.isFinite(a)) areaTxt = `${a.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} m² (interseção c/ limite)`;
+      }
     } catch { /* fallback sem clip */ }
-    const latlngs = geom.type === 'Polygon'
-      ? geom.coordinates[0].map(([lng, lat]) => [lat, lng])
-      : f.geometry.coordinates[0].map(([lng, lat]) => [lat, lng]);
-    return L.polygon(latlngs, {
-      color: p.cor_borda, fillColor: p.cor_preenchimento, fillOpacity: 0.28, weight: 2, dashArray: '6 4'
-    }).bindPopup(popupTabela(
-      p.nome,
-      [['Hipótese', p.hipotese || p.popup || '—'], ['Área clipada', areaTxt], ['Método', p.metodo || 'modelo interpretativo']],
-      'Não corresponde a zoneamento legal — ver Plano Diretor.'
-    ));
+    let latlngs = [];
+    if (geom?.type === 'Polygon') latlngs = [anelParaLatLng(geom.coordinates[0])];
+    else if (geom?.type === 'MultiPolygon') latlngs = geom.coordinates.map((poly) => anelParaLatLng(poly[0]));
+    else latlngs = [anelParaLatLng(f.geometry?.coordinates?.[0])];
+    latlngs.filter((a) => a.length >= 3).forEach((anel) => {
+      const poly = L.polygon(anel, {
+        color: p.cor_borda, fillColor: p.cor_preenchimento, fillOpacity: 0.28, weight: 2, dashArray: '6 4'
+      }).bindPopup(popupTabela(
+        p.nome,
+        [['Hipótese', p.hipotese || p.popup || '—'], ['Área clipada', areaTxt], ['Método', p.metodo || 'modelo interpretativo']],
+        'Não corresponde a zoneamento legal — ver Plano Diretor.'
+      ));
+      polys.push(poly);
+      porNome[p.nome] = poly;
+    });
   });
   const tip = L.layerGroup(polys).addTo(map);
-  return { tip, hSul: polys[0], mista: polys[1] };
+  const hSul = porNome['Zona horizontal sul — mananciais'] || polys[0];
+  const mista = porNome['Zona mista/vertical — eixo BR-116'] || polys[1] || polys[0];
+  return { tip, hSul, mista };
 }
 
 /**

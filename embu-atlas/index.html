@@ -3,14 +3,20 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#0f2a44">
   <title>Atlas Municipal de Embu das Artes (SP, 3515004) — Urbanização, Equipamentos e Tipologia Habitacional</title>
-  <meta name="description" content="Atlas digital municipal de Embu das Artes (IBGE 3515004): limite, sistema viário estruturante, equipamentos, tipologia horizontal/vertical e assentamentos precários. Datum SIRGAS 2000, fontes IBGE Cidades@.">
+  <meta name="description" content="Atlas digital municipal de Embu das Artes (IBGE 3515004): limite, sistema viário estruturante OSM (17 eixos), equipamentos, tipologia horizontal/vertical e assentamentos precários. Datum SIRGAS 2000, fontes IBGE Cidades@ + OpenStreetMap.">
+  <meta property="og:title" content="Atlas Municipal de Embu das Artes (SP) — IBGE 3515004">
+  <meta property="og:description" content="Viário estruturante preciso (OSM), centralidades e tipologia habitacional.">
+  <meta property="og:type" content="website">
   <meta name="dcterms.coverage" content="Embu das Artes, São Paulo, Brasil. -23.65,-46.85">
-  <meta name="dcterms.source" content="IBGE Cidades@; Esri World Imagery / Light Gray Canvas">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <meta name="dcterms.source" content="IBGE Cidades@; OpenStreetMap (ODbL); Esri World Imagery / Light Gray Canvas">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f2a44'/%3E%3Cpath d='M6 22 L16 8 L26 22' stroke='%23FFD600' stroke-width='3.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='16' cy='24' r='2.4' fill='%23fff'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
+  <a class="skip-link" href="#map">Pular para o mapa</a>
   <header class="topo">
     <div class="topo-ident">
       <p class="inst">ETESP — Atlas Municipal Aplicado</p>
@@ -25,8 +31,8 @@
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Vistas do atlas">
-    <button id="tab-mapa" role="tab" aria-selected="true" aria-controls="wrap" type="button">Mapa</button>
-    <button id="tab-perfil" role="tab" aria-selected="false" aria-controls="view-perfil" type="button">Perfil Topográfico</button>
+    <button id="tab-mapa" role="tab" aria-selected="true" aria-controls="wrap" type="button" tabindex="0">Mapa</button>
+    <button id="tab-perfil" role="tab" aria-selected="false" aria-controls="view-perfil" type="button" tabindex="-1">Perfil Topográfico</button>
   </nav>
 
   <div id="wrap">
@@ -66,19 +72,22 @@
       <section class="card" aria-labelledby="t-busca">
         <h3 id="t-busca">Busca toponímica</h3>
         <label class="sr" for="q">Buscar equipamento ou via</label>
-        <input id="q" list="lugares" type="text" placeholder="Ex.: Feira, Yazbek, Rodoanel..." autocomplete="off">
+        <input id="q" list="lugares" type="text" placeholder="Ex.: Yazbek, Rodoanel, Feira…" autocomplete="off" aria-describedby="q-ajuda">
+        <p class="fonte" id="q-ajuda">Digite parte do nome (sem acento funciona) + Enter. Esc limpa.</p>
         <datalist id="lugares"></datalist>
       </section>
 
       <section class="card" aria-labelledby="t-camadas">
         <h3 id="t-camadas">Camadas e legenda</h3>
         <label class="row"><input type="checkbox" id="c-lim" checked> <strong>Limite municipal</strong> <span class="leg-linha" style="border-color:#FFD600"></span></label>
-        <label class="row"><input type="checkbox" id="c-via" checked> <strong>Sistema viário estruturante</strong></label>
+        <label class="row"><input type="checkbox" id="c-via" checked> <strong>Sistema viário estruturante</strong> <span id="n-via" class="fonte"></span></label>
         <ul class="legenda-vias">
-          <li><span class="linha" style="background:red"></span> BR-116 Régis Bittencourt — logística</li>
-          <li><span class="linha" style="background:#9c27b0"></span> Rodoanel — articulação metropolitana N–S</li>
-          <li><span class="linha" style="background:#FF6F00"></span> Vias coletoras (Yazbek / Medina / Leone)</li>
-          <li><span class="linha" style="background:#1976d2"></span> Centro Histórico — circulação cultural</li>
+          <li><span class="linha" style="background:#D81B06;height:6px"></span> BR-116 Régis Bittencourt — logística (pista dupla)</li>
+          <li><span class="linha tracejada" style="background:#7B1FA2"></span> Rodoanel Mário Covas — articulação N–S</li>
+          <li><span class="linha" style="background:#F57C00;height:5px"></span> Arteriais: Yazbek · Rotary · Marcelino · Leone · Hélio Daikuara</li>
+          <li><span class="linha" style="background:#1565C0;height:4px"></span> Coletoras: Medina · J. Souza · J. Paulo I · Veredas · Moraes · Hercílio</li>
+          <li><span class="linha" style="background:#2E9E44;height:4px"></span> Vicinais sul: Orquidófilos · Keiichi · Taji</li>
+          <li><span class="linha pontilhada" style="background:#C2185B"></span> Centro Histórico — circulação cultural</li>
         </ul>
         <label class="row"><input type="checkbox" id="c-eq" checked> <span class="dot" style="background:#1976d2"></span> <strong>Equipamentos e centralidades</strong> <span id="n-eq"></span></label>
         <p class="legenda-cod">C = cultura · T = turismo/feira · L = lazer · E = economia · S = saúde (localização aproximada/ex-histórica quando indicado)</p>
@@ -88,7 +97,8 @@
           <li><span class="quad" style="background:rgba(123,31,162,.35);border-color:#7b1fa2"></span> Mista / verticalização — eixo BR-116</li>
         </ul>
         <label class="row"><input type="checkbox" id="c-fav" checked> <strong>Assentamentos precários / irregulares</strong> <span class="losango" aria-hidden="true"></span></label>
-        <div class="row">Opacidade tipologia <input type="range" id="op" min="10" max="80" value="30" style="flex:1" aria-label="Opacidade das zonas tipológicas"></div>
+        <div class="row">Opacidade tipologia <input type="range" id="op" min="10" max="80" value="30" style="flex:1" aria-label="Opacidade das zonas tipológicas"> <span id="op-val" class="fonte">30%</span></div>
+        <p class="fonte">Viário: OpenStreetMap (ODbL) 29 set 2026, clipado ao limite didático, ~50 km em 17 eixos. Clique numa via p/ classe, extensão e fonte.</p>
       </section>
 
       <section class="card" aria-labelledby="t-metodo">
@@ -97,7 +107,8 @@
           <dt>Datum / SRC</dt><dd>SIRGAS 2000 (EPSG:4674), coordenadas geográficas decimais</dd>
           <dt>Base cartográfica</dt><dd>Esri Light Gray Canvas (rua), OSM Padrão, Relevo OpenTopoMap e World Imagery (satélite); escala dinâmica + barra gráfica</dd>
           <dt>Limite</dt><dd>Polígono simplificado de trabalho; para análise oficial usar malha IBGE/Seade</dd>
-          <dt>Viário/equipamentos</dt><dd>Vetorização interpretativa + pontos de campo/bibliografia; itens “aprox”/“ex” exigem checagem in loco</dd>
+          <dt>Viário (17 eixos)</dt><dd>Traçado OpenStreetMap (ODbL) via Overpass 29 set 2026, clipado ao limite didático + simplificação ~11 m; pista dupla preservada em BR/Rodoanel; <code>comp_km</code> esquemático. Centro Histórico: vetorização didática.</dd>
+          <dt>Equipamentos</dt><dd>Pontos de campo/bibliografia; itens “aprox”/“ex” exigem checagem in loco</dd>
           <dt>Tipologia</dt><dd>Modelo conceitual (não zoneamento legal): ver <code>data/zonas_tipologia.geojson</code></dd>
         </dl>
       </section>
@@ -117,12 +128,14 @@
         <p>IBGE. Embu das Artes. <em>Cidades e Estados</em>. Disponível em: https://www.ibge.gov.br/cidades-e-estados/sp/embu-das-artes.html. Acesso em: 22 set. 2026.</p>
         <p>ESRI; MAXAR. World Imagery / World Light Gray Base. Tiles de referência, 2026.</p>
         <p>FARR, T. G. et al. The Shuttle Radar Topography Mission. <em>Reviews of Geophysics</em>, v. 45, 2007. Dados SRTM 90m via OpenTopoData. Disponível em: https://www.opentopodata.org/. Acesso em: 23 set. 2026.</p>
+        <p>OPENSTREETMAP contributors. Planet dump / Overpass API — viário de Embu das Artes (BR-116, Rodoanel, arteriais e vicinais). Licença ODbL. Consulta em: 29 set. 2026.</p>
       </section>
 
       <div id="coord" role="status" aria-live="polite">-23.6489,-46.8522</div>
-      <p class="licenca">Uso educacional. Limite e pontos simplificados — citar fontes e verificar em campo/órgãos oficiais.</p>
+      <p class="licenca">Uso educacional. Limite simplificado; viário © OpenStreetMap contributors (ODbL) — citar fontes e verificar em campo/órgãos oficiais.</p>
     </aside>
-    <main id="map" aria-label="Mapa interativo de Embu das Artes"></main>
+    <main id="map" aria-label="Mapa interativo de Embu das Artes" tabindex="0"></main>
+    <noscript><p style="padding:12px">Ative o JavaScript para ver o mapa interativo do atlas.</p></noscript>
   </div>
   <section id="view-perfil" hidden aria-labelledby="t-perfil">
     <div class="perfil-head">
@@ -148,8 +161,7 @@
       </div>
     </div>
   </section>
-  <div class="norte norte-legado" aria-hidden="true">N▲</div>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>

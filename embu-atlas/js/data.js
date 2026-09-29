@@ -14,15 +14,30 @@ export const DATA_PATHS = {
 };
 
 /**
- * Carrega um GeoJSON via fetch com erro tipado.
+ * Carrega um GeoJSON via fetch com erro tipado, timeout e validação mínima.
  * @param {string} path Caminho do arquivo.
+ * @param {number} [timeoutMs=9000] Timeout.
  * @returns {Promise<object>} GeoJSON parseado.
- * @throws {Error} Se a resposta HTTP não for ok.
+ * @throws {Error} Se a resposta HTTP não for ok ou o GeoJSON for inválido.
  */
-export async function loadGeoJSON(path) {
-  const res = await fetch(path);
+export async function loadGeoJSON(path, timeoutMs = 9000) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), timeoutMs);
+  let res;
+  try {
+    res = await fetch(path, { signal: ctrl.signal });
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error(`Tempo esgotado ao carregar ${path}`);
+    throw new Error(`Falha de rede ao carregar ${path}: ${e.message}`);
+  } finally {
+    clearTimeout(t);
+  }
   if (!res.ok) throw new Error(`Falha ao carregar ${path}: HTTP ${res.status}`);
-  return res.json();
+  const j = await res.json();
+  if (j?.type !== 'FeatureCollection' || !Array.isArray(j.features)) {
+    throw new Error(`GeoJSON inválido em ${path}: esperado FeatureCollection`);
+  }
+  return j;
 }
 
 /**

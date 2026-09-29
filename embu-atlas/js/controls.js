@@ -11,36 +11,64 @@
 export function initControls(map, layers, base) {
   const { limite, viario, equip, tip, fav, hSul, mista } = layers;
   const { cinza, sat, bases } = base;
+  const coordEl = document.getElementById('coord');
 
   const nEq = document.getElementById('n-eq');
   if (nEq) nEq.textContent = `(${equip.getLayers().length})`;
+  const nVia = document.getElementById('n-via');
+  if (nVia) {
+    const totalKm = (viario.toGeoJSON?.().features || []).reduce((s, f) => s + (Number(f.properties?.comp_km) || 0), 0);
+    nVia.textContent = `(${viario.getLayers().length} eixos · ${totalKm.toFixed(0).replace('.', ',')} km)`;
+  }
 
   const dl = document.getElementById('lugares');
   const q = document.getElementById('q');
+  const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
   const equipList = [];
+  const viaList = [];
   equip.eachLayer((layer) => {
     const nome = layer.feature?.properties?.nome;
     if (nome) {
-      equipList.push({ nome, latlng: layer.getLatLng() });
+      equipList.push({ nome, n: norm(nome), latlng: layer.getLatLng(), layer });
       dl.appendChild(option(nome));
     }
   });
   viario.eachLayer((layer) => {
     const nome = layer.feature?.properties?.nome;
-    if (nome) dl.appendChild(option(nome));
-  });
-  q.addEventListener('change', (ev) => {
-    const alvo = ev.target.value.trim();
-    const foundEq = equipList.find((e) => e.nome === alvo);
-    if (foundEq) {
-      map.flyTo(foundEq.latlng, 15, { duration: 1.2 });
-      return;
+    if (nome && !viaList.some((v) => v.nome === nome)) {
+      viaList.push({ nome, n: norm(nome), layer });
+      dl.appendChild(option(nome));
     }
-    viario.eachLayer((layer) => {
-      if (layer.feature?.properties?.nome === alvo && layer.getBounds) {
-        map.flyToBounds(layer.getBounds(), { padding: [30, 30] });
-      }
-    });
+  });
+  const buscar = (texto) => {
+    const alvo = norm(texto);
+    if (!alvo) return false;
+    const fEq = equipList.find((e) => e.n === alvo) || equipList.find((e) => e.n.includes(alvo));
+    if (fEq) {
+      map.flyTo(fEq.latlng, 15, { duration: 1.1 });
+      setTimeout(() => fEq.layer.openPopup(), 1200);
+      return true;
+    }
+    const fVia = viaList.find((v) => v.n === alvo) || viaList.find((v) => v.n.includes(alvo));
+    if (fVia?.layer?.getBounds) {
+      map.flyToBounds(fVia.layer.getBounds(), { padding: [40, 40], maxZoom: 15 });
+      setTimeout(() => fVia.layer.openPopup(), 900);
+      return true;
+    }
+    return false;
+  };
+  q.addEventListener('change', (ev) => {
+    if (!buscar(ev.target.value) && coordEl) {
+      coordEl.textContent = `Topônimo não encontrado: “${ev.target.value.trim()}”. Tente “Yazbek”, “Rodoanel”, “Feira”…`;
+    }
+  });
+  q.addEventListener('input', (ev) => {
+    // Sugestão incremental: completa datalist já cobre; busca sob Enter via change
+    if (ev.target.value === '' && coordEl) coordEl.textContent = `${map.getCenter().lat.toFixed(5)},${map.getCenter().lng.toFixed(5)} · SIRGAS 2000 · z${map.getZoom()}`;
+  });
+  q.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Escape') { q.value = ''; q.blur(); }
+    if (ev.key === 'Enter') buscar(q.value);
   });
 
   const mapa = [
@@ -58,11 +86,23 @@ export function initControls(map, layers, base) {
     if (item) document.getElementById(item[0]).checked = false;
   });
 
-  document.getElementById('op').addEventListener('input', (e) => {
-    const v = e.target.value / 100;
-    hSul.setStyle({ fillOpacity: v });
-    mista.setStyle({ fillOpacity: v });
-  });
+  const op = document.getElementById('op');
+  const opVal = document.getElementById('op-val');
+  const aplicarOp = (pct) => {
+    const v = Math.min(80, Math.max(10, Number(pct))) / 100;
+    [hSul, mista].forEach((ly) => { try { ly.setStyle({ fillOpacity: v }); } catch { /* grupo */ } });
+    tip.eachLayer?.((ly) => { try { ly.setStyle({ fillOpacity: v }); } catch { /* noop */ } });
+    if (opVal) opVal.textContent = `${Math.round(v * 100)}%`;
+    try { localStorage.setItem('embu:opTip', String(Math.round(v * 100))); } catch { /* noop */ }
+  };
+  if (op) {
+    try {
+      const salvo = Number(localStorage.getItem('embu:opTip'));
+      if (Number.isFinite(salvo) && salvo >= 10 && salvo <= 80) op.value = String(salvo);
+    } catch { /* noop */ }
+    aplicarOp(op.value);
+    op.addEventListener('input', (e) => aplicarOp(e.target.value));
+  }
 
   // Alterna Cinza <-> Satélite mantendo as demais bases do control acessíveis
   const temSatelite = () => map.hasLayer(sat);
@@ -83,12 +123,20 @@ export function initControls(map, layers, base) {
 
   document.getElementById('b-reset').onclick = () => map.fitBounds(limite.getBounds());
   document.getElementById('b-loc').onclick = () => map.locate({ setView: true, maxZoom: 15 });
-  map.on('locationerror', () => alert('Não foi possível obter sua localização. Verifique a permissão do navegador.'));
-
-  map.on('mousemove', (e) => {
-    document.getElementById('coord').textContent =
-      `${e.latlng.lat.toFixed(5)},${e.latlng.lng.toFixed(5)} · SIRGAS 2000 · z${map.getZoom()}`;
+  map.on('locationerror', () => {
+    if (coordEl) coordEl.textContent = 'Localização indisponível — verifique a permissão do navegador.';
   });
+  map.on('locationfound', (e) => {
+    if (coordEl) coordEl.textContent = `${e.latlng.lat.toFixed(5)},${e.latlng.lng.toFixed(5)} · você está aqui · z${map.getZoom()}`;
+  });
+
+  const mostraCoord = (latlng) => {
+    if (!coordEl) return;
+    coordEl.textContent = `${latlng.lat.toFixed(5)},${latlng.lng.toFixed(5)} · SIRGAS 2000 · z${map.getZoom()}`;
+  };
+  map.on('mousemove', (e) => mostraCoord(e.latlng));
+  map.on('click', (e) => mostraCoord(e.latlng));
+  map.on('zoomend', () => mostraCoord(map.getCenter()));
 }
 
 /**
